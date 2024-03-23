@@ -8,6 +8,7 @@ from rest_framework.decorators import api_view
 from djangoProject.service.stock_tick import get_sz_sz_type
 from djangoProject.utils.busi_convert import convert_buy_sell_flag
 from djangoProject.utils.number_string_format import str_to_num
+from stock.models import StockSimulateTradeDetail, StockBase
 
 
 @api_view(['POST'])
@@ -64,7 +65,7 @@ def calculate_cumulative_and_current_vol_avg_price(data):
     cumulative_data = {}
     vol_total_sum = 0  # Total volume up to the current minute
     vol_price_total_sum = 0  # Total volume*price up to the current minute
-
+    list=[]
     for entry in data:
         minute_key = entry['time'][:5]  # HH:MM format
         second = int(entry['time'][6:8])  # Extracting seconds
@@ -81,12 +82,14 @@ def calculate_cumulative_and_current_vol_avg_price(data):
         cumulative_avg_price = vol_price_total_sum / vol_total_sum if vol_total_sum else 0
         max_second_price = max(info['prices'], key=lambda x: x[0])[1]
         # Store cumulative and current minute data
-        cumulative_data[minute] = {
+        cumulative_data = {
+            'minuter': minute,
             'avg_price': round(cumulative_avg_price, 2),
             'vol': info['vol_sum'],
             'price': max_second_price,
         }
-    return cumulative_data
+        list.append(cumulative_data)
+    return list
 
 
 @api_view(['POST'])
