@@ -1,5 +1,9 @@
 import json
 from datetime import datetime, date
+import akshare as ak
+
+from djangoProject.utils.StockUtil import is_up_limit
+from djangoProject.utils.klineUtil import calculate_cumulative_and_current_vol_avg_price, his_tick_list
 
 import numpy as np
 import pandas as pd
@@ -7,6 +11,7 @@ from django.http import HttpResponse
 from rest_framework.decorators import api_view
 
 from djangoProject.utils import StockUtil
+from djangoProject.utils.sinaKlineUtil import get_stock_minuter_list
 from stock.models import StockBase
 
 
@@ -24,12 +29,17 @@ def getDayDateScore(request):
     list = []
     for strategySign in strategySignArr:
         if (strategySign == 'cyb_big_increase_high_open'):
-            data1 = get_data(df_qfq, target_idx, scoreSign, code,"创业板大涨幅高开")
-            list.append(data1)
+            if df_qfq.iloc[target_idx-1].increaseRate>10 and df_qfq.iloc[target_idx-1].increaseRate<19 and df_qfq.iloc[target_idx-1].tradeAmount>80000000:
+                data1 = get_data(df_qfq, target_idx, scoreSign, code,"创业板大涨幅高开")
+                list.append(data1)
         if (strategySign == 'cyb_small_increase_high_open'):
-            data1 = get_data(df_qfq, target_idx, scoreSign, code,"创业板小涨幅高开")
+            if (df_qfq.iloc[target_idx-1].increaseRate>5 and df_qfq.iloc[target_idx-1].increaseRate<10 and df_qfq.iloc[target_idx-1].tradeAmount>80000000
+                    and df_qfq.iloc[target_idx-2].increaseRate<7 and df_qfq.iloc[target_idx-3].increaseRate<7 and  df_qfq.iloc[target_idx-1].open/ df_qfq.iloc[target_idx-2].close< 1.02):
+                data1 = get_data(df_qfq, target_idx, scoreSign, code,"创业板小涨幅高开")
+                list.append(data1)
+        if (strategySign == 'special'):
+            data1 = get_data(df_qfq, target_idx, scoreSign, code,"")
             list.append(data1)
-    print(list)
     return HttpResponse(json.dumps(list, default=default_converter))
 
 
@@ -43,7 +53,7 @@ def default_converter(obj):
 
 def get_data(df_qfq, target_idx, scoreSign, code,strategyName):
     begin_index = 0
-    if scoreSign == 'today':
+    if scoreSign == 'today' or scoreSign is None:
         begin_index = 0
     if scoreSign == 'last':
         begin_index = 1
@@ -51,16 +61,109 @@ def get_data(df_qfq, target_idx, scoreSign, code,strategyName):
     if target_idx < 40:
         score_period = target_idx
     score_sum = sum([df_qfq.iloc[target_idx - i].skill_score for i in range(begin_index, begin_index + score_period)])
+    last_begin_15_score_sum=0
+    if score_period==40:
+        last_begin_15_score_sum = sum(
+            [df_qfq.iloc[target_idx - i].skill_score for i in range(24, 40)])
+    last_middle_15_score_sum = 0
+    if score_period > 25:
+        last_middle_15_score_sum = sum(
+            [df_qfq.iloc[target_idx - i].skill_score for i in range(15, 25)])
+    last_end_15_score_sum = 0
+    if score_period > 15:
+        last_end_15_score_sum = sum(
+            [df_qfq.iloc[target_idx - i].skill_score for i in range(0, 14)])
     lose_sum = sum([df_qfq.iloc[target_idx - i].lose_score for i in range(begin_index, begin_index + score_period)])
+    last_begin_15_lose_sum = 0
+    if score_period == 40:
+        last_begin_15_lose_sum = sum(
+            [df_qfq.iloc[target_idx - i].lose_score for i in range(24, 40)])
+    last_middle_15_lose_sum = 0
+    if score_period > 25:
+        last_middle_15_lose_sum = sum(
+            [df_qfq.iloc[target_idx - i].lose_score for i in range(15, 25)])
+    last_end_15_lose_sum = 0
+    if score_period > 15:
+        last_end_15_lose_sum = sum(
+            [df_qfq.iloc[target_idx - i].lose_score for i in range(0, 14)])
+    upLimitcount = 0
+    for i in  range(begin_index, begin_index + score_period):
+        if is_up_limit(code,df_qfq.iloc[target_idx - i-1].close,df_qfq.iloc[target_idx - i].close):
+            upLimitcount += 1
+    greate5count = 0
+    for i in range(begin_index, begin_index + score_period):
+        if df_qfq.iloc[target_idx - i].increaseRate>5 and df_qfq.iloc[target_idx - i].increaseRate<10 and not is_up_limit(code,df_qfq.iloc[target_idx - i-1].close,df_qfq.iloc[target_idx - i].close):
+            greate5count += 1
+    greate10count = 0
+    for i in range(begin_index, begin_index + score_period):
+        if df_qfq.iloc[target_idx - i].increaseRate > 10 and df_qfq.iloc[target_idx - i].increaseRate < 15 and not is_up_limit(code,df_qfq.iloc[target_idx - i-1].close,df_qfq.iloc[target_idx - i].close):
+            greate10count += 1
+    greate15count = 0
+    for i in range(begin_index, begin_index + score_period):
+        if df_qfq.iloc[target_idx - i].increaseRate > 15 and df_qfq.iloc[target_idx - i].increaseRate < 20 and not is_up_limit(code,df_qfq.iloc[target_idx - i-1].close,df_qfq.iloc[target_idx - i].close):
+            greate15count += 1
+    less5count = 0
+    less10count = 0
+    less15count = 0
+    for i in range(begin_index, begin_index + score_period):
+        increase_rate = df_qfq.iloc[target_idx - i].increaseRate
+        if -10 < increase_rate < -5:
+            less5count += 1
+        elif -15 < increase_rate < -10:
+            less10count += 1
+        elif -20 < increase_rate < -15:
+            less15count += 1
 
+    maxPrice=0
+    minPrice=0
+    for i in range(begin_index, begin_index + score_period):
+        currClose = df_qfq.iloc[target_idx - i].close
+        if currClose > maxPrice:
+            maxPrice = currClose
+        if minPrice==0:
+            minPrice = currClose
+        if currClose < minPrice:
+            minPrice = currClose
+    lastDateStr=df_qfq.iloc[target_idx-1].date.strftime("%Y-%m-%d")
+    dateStr=df_qfq.iloc[target_idx].date.strftime("%Y-%m-%d")
+    currDateStr=datetime.now().strftime("%Y-%m-%d")
+    callAuctionAmount=0
+    if(dateStr==currDateStr):
+        minute_kline_data = get_stock_minuter_list(code)
+        if len(minute_kline_data)>0:
+            callAuctionAmount=float(minute_kline_data[0]['price']) *float( minute_kline_data[0]['vol'])*100
+    else:
+        list = his_tick_list(dateStr, code)
+        minute_kline_data=calculate_cumulative_and_current_vol_avg_price(list)
+        callAuctionAmount = minute_kline_data[0]['price'] * minute_kline_data[0]['vol']*100
     stockBase =StockBase.objects.get(pk=code)
     return {
+        'rangeRate': round(
+            (df_qfq.iloc[target_idx].close - df_qfq.iloc[target_idx - score_period].close) / df_qfq.iloc[target_idx - score_period].close,
+            4),
+        'rangeMaxMinRate': round(
+            (maxPrice - minPrice) /minPrice ,
+            4),
+        'currPrice': df_qfq.iloc[target_idx].close,
+        'upLimitcount':upLimitcount,
+        'greate5count':greate5count,
+        'greate10count':greate10count,
+        'greate15count':greate15count,
+        'less5count':less5count,
+        'less10count':less10count,
+        'less15count':less15count,
+        'upDownRange':str(greate15count)+'-'+str(greate10count)+'-'+str(greate5count)+'--'+str(less5count)+'-'+str(less10count)+'-'+str(less15count),
         'callAuctionPrice': df_qfq.iloc[target_idx].open,
+        'callAuctionAmount': callAuctionAmount,
         'callAuctionRate': round(
             (df_qfq.iloc[target_idx].open - df_qfq.iloc[target_idx - 1].close) / df_qfq.iloc[target_idx - 1].close, 4),
+        'lastCallAuctionRate': round(
+            (df_qfq.iloc[target_idx-1].open - df_qfq.iloc[target_idx - 2].close) / df_qfq.iloc[target_idx - 2].close, 4),
         'currPrice': df_qfq.iloc[target_idx].close,
         'currUpRate': round(
             (df_qfq.iloc[target_idx].close - df_qfq.iloc[target_idx - 1].close) / df_qfq.iloc[target_idx - 1].close, 4),
+        'lastUpRate': round(
+            (df_qfq.iloc[target_idx-1].close - df_qfq.iloc[target_idx - 2].close) / df_qfq.iloc[target_idx - 2].close, 4),
         'maxPrice': df_qfq.iloc[target_idx].high,
         'maxUpRate': round(
             (df_qfq.iloc[target_idx].high - df_qfq.iloc[target_idx - 1].close) / df_qfq.iloc[target_idx - 1].close, 4),
@@ -68,15 +171,22 @@ def get_data(df_qfq, target_idx, scoreSign, code,strategyName):
         'minUpRate': round(
             (df_qfq.iloc[target_idx].low - df_qfq.iloc[target_idx - 1].close) / df_qfq.iloc[target_idx - 1].close, 4),
         'tradeAmount': df_qfq.iloc[target_idx].tradeAmount,
+        'lastTradeAmount': df_qfq.iloc[target_idx-1].tradeAmount,
+        'callAuctionTurnOverRate':0 if  stockBase.total_share_capital is None else round(callAuctionAmount/(stockBase.total_share_capital*df_qfq.iloc[target_idx].close)*100 ,4),
         'turnOverRate':df_qfq.iloc[target_idx].turnoverRate,
+        'lastTurnOverRate': df_qfq.iloc[target_idx-1].turnoverRate,
         'code': code,
         'name': stockBase.name,
+        'marketValue':0 if  stockBase.total_share_capital is None else stockBase.total_share_capital*df_qfq.iloc[target_idx].close ,
+        'circulateMarketValue': 0 if stockBase.circulate_share_capital is None else stockBase.circulate_share_capital * df_qfq.iloc[target_idx].close,
         'theme':stockBase.theme,
         'industry':stockBase.industry,
         'strategyName':strategyName,
         'scoreDateStr': df_qfq.iloc[target_idx - begin_index].date,
         'killScore': np.int64(score_sum),
-        'loseScore': np.int64(lose_sum)
+        'killScoreRange': str(last_begin_15_score_sum) + '-' + str(last_middle_15_score_sum) + '-' + str(last_end_15_score_sum),
+        'loseScore': np.int64(lose_sum),
+        'loseScoreRange': str(last_begin_15_lose_sum) + '-' + str(last_middle_15_lose_sum) + '-' + str(last_end_15_lose_sum),
     }
 
 
@@ -89,3 +199,10 @@ def two_years_earlier(date_str):
 
     # 将新日期转换回字符串格式并返回
     return new_date.strftime("%Y%m%d")
+
+
+
+
+
+
+

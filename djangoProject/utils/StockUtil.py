@@ -1,6 +1,8 @@
 import traceback
 from datetime import datetime
 import time
+from decimal import Decimal, ROUND_HALF_UP
+
 import numpy as np
 import pandas as pd
 from backtrader.feeds import PandasData
@@ -290,3 +292,23 @@ def backTraderProcess(stockList,batch_size,sdate, edate,start_cash,stake,commfee
 # 实体K线，无长上影线和下影线
 def kLineShiTi(data,i):
     return data.high[i]-max(data.close[i], data.open[i])+min(data.close[i], data.open[i])-data.low[i]<(data.high[i]-data.low[i])*0.5
+
+
+def get_up_limit_price(code, price):
+    price = Decimal(price)
+    if code.startswith(("30", "68", "11", "12")):
+        multiply = Decimal('1.2')
+    elif code.startswith(("60", "00")):
+        multiply = Decimal('1.1')
+    else:
+        multiply = Decimal('1.3')
+
+    if code.startswith(("11", "12")):
+        result = (price * multiply).quantize(Decimal('0.001'), rounding=ROUND_HALF_UP)
+    else:
+        result = (price * multiply).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+    return result
+def is_up_limit(code,lastClosePrice, closePrice):
+    return  get_up_limit_price(code,lastClosePrice)-Decimal(str(closePrice))<0.001
+
