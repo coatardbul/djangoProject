@@ -1,17 +1,93 @@
 
 from collections import defaultdict
 
+import requests
 from pytdx.hq import TdxHq_API
 
 from djangoProject.service.stock_tick import get_sz_sz_type
 from djangoProject.utils.busi_convert import convert_buy_sell_flag
 from djangoProject.utils.number_string_format import str_to_num
 
+
+
+#将tick数据转换成分钟数据，可以是5分钟，15分钟，30分钟，60分钟
+# {
+#     "id": "2022-01-21_001234",
+#     "code": "001234",
+#     "dateStr": "2022-01-21",
+#     "name": "泰慕士",
+#     "openPrice": 50.03,
+#     "currIncreaseRate": -10.22,
+#     "closePrice": 40.75,
+#     "minPrice": 40.75,
+#     "maxPrice": 50.03,
+#     "lastClosePrice": 45.39,
+#     "turnOverRate": 79.85,
+#     "quantityRelativeRatio": null,
+#     "volume": 212922,
+#     "tradeAmount": 1014265600,
+#     "maxSubRate": 20.45
+# }
+
+def calculate_minuter_kline(tickArr, minute):
+    #请求river数据
+    url = "http://124.222.217.230:9002/river/timeInterval/getTimeList"
+
+    # 要发送的数据对象
+    data = {
+        "intervalType": minute,  # 5分钟，15分钟，30分钟，60分钟
+        # 更多的键值对
+    }
+    # tickArr=his_tick_list('2024-03-27', '001234')
+    # tickArr =his_tick_list('2024-03-27', '001234')
+    list=[]
+    # 发起POST请求
+    response = requests.post(url, json=data)
+    if response.status_code == 200:
+        timeIntervalArr=response.json().get("data", [])
+        for index, item in enumerate(timeIntervalArr[1:], start=1):
+            print(f"Index: {index}, Item: {item}")
+            # 过滤出09:30到09:35之间的数据
+            filtered_data = [item for item in tickArr if timeIntervalArr[index-1] <= item['time'] <= timeIntervalArr[index]]
+            # 计算a*b的总和
+            tradeAmount = sum(item["price"] * item["vol"]*100 for item in filtered_data)
+
+            # 计算b的总和
+            vol = sum(item["vol"] for item in filtered_data)
+
+            # 找出a的最大值和最小值
+            maxPrice = max(item["price"] for item in filtered_data)
+            minPrice = min(item["price"] for item in filtered_data)
+            tickInfo={
+                # "id": "2022-01-21_001234",
+                # "code": "001234",
+                "dateStr":  timeIntervalArr[index],
+                # "name": "泰慕士",
+                "openPrice": filtered_data[0]["price"],
+                # "currIncreaseRate": -10.22,
+                "closePrice": filtered_data[len(filtered_data)-1]["price"],
+                "minPrice":minPrice,
+                "maxPrice": maxPrice,
+                # "lastClosePrice": 45.39,
+                # "turnOverRate": 79.85,
+                # "quantityRelativeRatio": null,
+                "volume": vol,
+                "tradeAmount": tradeAmount,
+                # "maxSubRate": 20.45
+            }
+            list.append(tickInfo)
+    return list;
+
+
 def calculate_cumulative_and_current_vol_avg_price(data):
     grouped_data = defaultdict(lambda: {'vol_sum': 0, 'prices': [], 'vol_price_sum': 0})
     cumulative_data = {}
     vol_total_sum = 0  # Total volume up to the current minute
+    pm_vol_total_sum = 0.01  # Total volume up to the current minute
+
     vol_price_total_sum = 0  # Total volume*price up to the current minute
+    pm_vol_price_total_sum = 0  # Total volume*price up to the current minute
+
     list=[]
     for entry in data:
         minute_key = entry['time'][:5]  # HH:MM format
@@ -26,12 +102,18 @@ def calculate_cumulative_and_current_vol_avg_price(data):
     for minute, info in sorted(grouped_data.items()):
         vol_total_sum += info['vol_sum']
         vol_price_total_sum += info['vol_price_sum']
+        if minute>='13:00':
+            pm_vol_total_sum += info['vol_sum']
+            pm_vol_price_total_sum += info['vol_price_sum']
+
         cumulative_avg_price = vol_price_total_sum / vol_total_sum if vol_total_sum else 0
+        pm_cumulative_avg_price = pm_vol_price_total_sum / pm_vol_total_sum if pm_vol_total_sum else 0
         max_second_price = max(info['prices'], key=lambda x: x[0])[1]
         # Store cumulative and current minute data
         cumulative_data = {
             'minuter': minute,
             'avg_price': round(cumulative_avg_price, 2),
+            'pm_avg_price': round(pm_cumulative_avg_price, 2),
             'vol': info['vol_sum'],
             'price': max_second_price,
         }
@@ -70,3 +152,5 @@ def his_tick_list(dateStr, code):
 def his_minuter_list(dateStr, code):
     list =his_tick_list(dateStr, code)
     return calculate_cumulative_and_current_vol_avg_price(list)
+
+

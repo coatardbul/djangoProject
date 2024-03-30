@@ -37,6 +37,33 @@ def getDayDateScore(request):
                     and df_qfq.iloc[target_idx-2].increaseRate<7 and df_qfq.iloc[target_idx-3].increaseRate<7 and  df_qfq.iloc[target_idx-1].open/ df_qfq.iloc[target_idx-2].close< 1.02):
                 data1 = get_data(df_qfq, target_idx, scoreSign, code,"创业板小涨幅高开")
                 list.append(data1)
+        #小涨幅
+        if (strategySign == 'cyb_small_increase'):
+            if (abs(df_qfq.iloc[target_idx-1].savgol_MA5_slope)<0.2 and abs(df_qfq.iloc[target_idx-2].savgol_MA5_slope)<0.2 and abs(df_qfq.iloc[target_idx-3].savgol_MA5_slope)<0.2
+            and abs(df_qfq.iloc[target_idx-1].savgol_MA10_slope)<0.1 and abs(df_qfq.iloc[target_idx-2].savgol_MA10_slope)<0.1 and abs(df_qfq.iloc[target_idx-3].savgol_MA10_slope)<0.1):
+                data1 = get_data(df_qfq, target_idx, scoreSign, code,"创业板小涨幅")
+                list.append(data1)
+        #长抢不倒
+        if (strategySign == 'cyb_cqbd'):
+            # # 五日线的斜率一定要往下
+            # and data.savgol_MA5_slope[-3] < 0.1
+            # and data.savgol_MA5_slope[-4] < 0.1
+            #
+            # # 涨幅当日实体的长度一定要大于上下影线的长度
+            # and data.close[-2] - data.open[-2] > (
+            #         data.high[-2] - data.close[-2] + data.open[-2] - data.low[-2]) * 1.3
+            # # 后一低开不能太多
+            # and data.open[-1] / data.close[-2] > 0.98
+            #
+            # # 后二不要有长下影线
+            # and (data.open[0] - data.low[0]) / (data.high[0] - data.low[0]) < 0.4
+            if(df_qfq.iloc[target_idx-3].savgol_MA5_slope<0.1 and df_qfq.iloc[target_idx-4].savgol_MA5_slope<0.1
+            and df_qfq.iloc[target_idx-2].close-df_qfq.iloc[target_idx-2].open>
+                    (df_qfq.iloc[target_idx-2].high-df_qfq.iloc[target_idx-2].close+df_qfq.iloc[target_idx-2].open-df_qfq.iloc[target_idx-2].low)*1.3
+            and df_qfq.iloc[target_idx-1].open/df_qfq.iloc[target_idx-2].close>0.98
+            and (df_qfq.iloc[target_idx].open-df_qfq.iloc[target_idx].low)/(df_qfq.iloc[target_idx].high-df_qfq.iloc[target_idx].low)<0.4):
+                data1 = get_data(df_qfq, target_idx, scoreSign, code,"创业板长抢不倒")
+                list.append(data1)
         if (strategySign == 'special'):
             data1 = get_data(df_qfq, target_idx, scoreSign, code,"")
             list.append(data1)
@@ -129,9 +156,11 @@ def get_data(df_qfq, target_idx, scoreSign, code,strategyName):
     currDateStr=datetime.now().strftime("%Y-%m-%d")
     callAuctionAmount=0
     if(dateStr==currDateStr):
-        minute_kline_data = get_stock_minuter_list(code)
-        if len(minute_kline_data)>0:
-            callAuctionAmount=float(minute_kline_data[0]['price']) *float( minute_kline_data[0]['vol'])*100
+        qwewq=1
+        #todo 新浪竟然封ip，再想想办法
+        # minute_kline_data = get_stock_minuter_list(code)
+        # if len(minute_kline_data)>0:
+        #     callAuctionAmount=float(minute_kline_data[0]['price']) *float( minute_kline_data[0]['vol'])
     else:
         list = his_tick_list(dateStr, code)
         minute_kline_data=calculate_cumulative_and_current_vol_avg_price(list)
@@ -160,6 +189,7 @@ def get_data(df_qfq, target_idx, scoreSign, code,strategyName):
         'lastCallAuctionRate': round(
             (df_qfq.iloc[target_idx-1].open - df_qfq.iloc[target_idx - 2].close) / df_qfq.iloc[target_idx - 2].close, 4),
         'currPrice': df_qfq.iloc[target_idx].close,
+        'lastClosePrice':df_qfq.iloc[target_idx-1].close,
         'currUpRate': round(
             (df_qfq.iloc[target_idx].close - df_qfq.iloc[target_idx - 1].close) / df_qfq.iloc[target_idx - 1].close, 4),
         'lastUpRate': round(
@@ -183,6 +213,7 @@ def get_data(df_qfq, target_idx, scoreSign, code,strategyName):
         'industry':stockBase.industry,
         'strategyName':strategyName,
         'scoreDateStr': df_qfq.iloc[target_idx - begin_index].date,
+        'dateStr': df_qfq.iloc[target_idx].date,
         'killScore': np.int64(score_sum),
         'killScoreRange': str(last_begin_15_score_sum) + '-' + str(last_middle_15_score_sum) + '-' + str(last_end_15_score_sum),
         'loseScore': np.int64(lose_sum),

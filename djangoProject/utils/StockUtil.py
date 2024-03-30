@@ -90,47 +90,6 @@ def getStockPandas(code, sdate, edate):
     df_qfq.columns = ['date', 'open', 'close', 'high', 'low', 'volume', 'tradeAmount', 'maxSubRate', 'increaseRate',
                       'increaseAmount', 'turnoverRate']
 
-    df_qfq['skill_score'] = 0
-    for i in range(1, len(df_qfq)):
-        #先跌后涨
-        if df_qfq['increaseRate'].iloc[i - 1] < -8 and df_qfq['increaseRate'].iloc[i] > 9:
-            df_qfq.loc[df_qfq.index[i], 'skill_score'] += 2
-        # 30开头的股票，前一天涨幅小于19，当天开盘降价涨幅大于1%
-        if (code[:2] == "30" and df_qfq['open'].iloc[i - 1] <df_qfq['close'].iloc[i - 1] and
-                df_qfq['increaseRate'].iloc[i - 1] < 19 and df_qfq['open'].iloc[i]/df_qfq['close'].iloc[i-1] >1.01) :
-            df_qfq.loc[df_qfq.index[i], 'skill_score'] += 1
-        # 60开头的股票，前一天涨幅小于9，当天开盘降价涨幅大于1%
-        if ((code[:2] == "60" or code[:2]=='00') and df_qfq['open'].iloc[i - 1] <df_qfq['close'].iloc[i - 1] and
-                df_qfq['increaseRate'].iloc[i - 1] < 9 and df_qfq['open'].iloc[i]/df_qfq['close'].iloc[i-1] >1.01) :
-            df_qfq.loc[df_qfq.index[i], 'skill_score'] += 1
-        # 主板股票，涨停后往下杀
-        if ((code[:2] == "60" or code[:2]=='00') and df_qfq['open'].iloc[i ] >df_qfq['close'].iloc[i]
-                and df_qfq['open'].iloc[i]/df_qfq['close'].iloc[i-1] >1.09  and df_qfq['close'].iloc[i-1]/df_qfq['close'].iloc[i-2] <1.09):
-            df_qfq.loc[df_qfq.index[i], 'skill_score'] += 3
-        # 创业板股票，涨停后往下杀
-        if (code[:2] == "30"  and df_qfq['open'].iloc[i ] >df_qfq['close'].iloc[i]
-                and df_qfq['open'].iloc[i]/df_qfq['close'].iloc[i-1] >1.09  and df_qfq['open'].iloc[i]/df_qfq['close'].iloc[i-1] <1.18
-                and df_qfq['close'].iloc[i-1]/df_qfq['close'].iloc[i-2] <1.09):
-            df_qfq.loc[df_qfq.index[i], 'skill_score'] += 3
-
-    df_qfq['lose_score'] = 0
-    for i in range(1, len(df_qfq)):
-        #跌5个点第二天不回补
-        if df_qfq['increaseRate'].iloc[i - 1] < -5 and df_qfq['increaseRate'].iloc[i-1] +df_qfq['increaseRate'].iloc[i]< -4:
-            df_qfq.loc[df_qfq.index[i], 'lose_score'] += 1
-        if df_qfq['increaseRate'].iloc[i - 1] > 4 and df_qfq['open'].iloc[i] / df_qfq['close'].iloc[i - 1] < 0.98 and df_qfq['open'].iloc[i] / df_qfq['close'].iloc[i - 1] > 0.96:
-            df_qfq.loc[df_qfq.index[i], 'lose_score'] += 1
-        if df_qfq['increaseRate'].iloc[i - 1] > 4 and df_qfq['open'].iloc[i] / df_qfq['close'].iloc[i - 1] < 0.96 and df_qfq['open'].iloc[i] / df_qfq['close'].iloc[i - 1] > 0.93:
-            df_qfq.loc[df_qfq.index[i], 'lose_score'] += 2
-        if df_qfq['increaseRate'].iloc[i - 1] > 4 and df_qfq['open'].iloc[i] / df_qfq['close'].iloc[i - 1] < 0.93 :
-            df_qfq.loc[df_qfq.index[i], 'lose_score'] += 4
-
-        if df_qfq['open'].iloc[i - 1] <df_qfq['close'].iloc[i - 1] and df_qfq['increaseRate'].iloc[i - 1] <4 and df_qfq['open'].iloc[i ] >df_qfq['close'].iloc[i ] and df_qfq['open'].iloc[i] / df_qfq['close'].iloc[i - 1] < 0.96  and df_qfq['open'].iloc[i] / df_qfq['close'].iloc[i - 1] > 0.94:
-            df_qfq.loc[df_qfq.index[i], 'lose_score'] += 2
-        if df_qfq['open'].iloc[i - 1] <df_qfq['close'].iloc[i - 1] and df_qfq['increaseRate'].iloc[i - 1] <4 and df_qfq['open'].iloc[i ] >df_qfq['close'].iloc[i ]  and df_qfq['open'].iloc[i] / df_qfq['close'].iloc[i - 1] < 0.94  and df_qfq['open'].iloc[i] / df_qfq['close'].iloc[i - 1] > 0.88:
-            df_qfq.loc[df_qfq.index[i], 'lose_score'] += 3
-        if df_qfq['open'].iloc[i - 1] <df_qfq['close'].iloc[i - 1] and df_qfq['increaseRate'].iloc[i - 1] <4 and df_qfq['open'].iloc[i] / df_qfq['close'].iloc[i - 1] < 0.88 :
-            df_qfq.loc[df_qfq.index[i], 'lose_score'] += 4
 
     df_qfq['MA5'] = df_qfq['close'].rolling(window=5).mean()
     df_qfq['MA5'].fillna(1, inplace=True)
@@ -194,6 +153,58 @@ def getStockPandas(code, sdate, edate):
     df_qfq['savgol_min'] = savgol_filter(df_qfq['minOpenClosePrice'], window_length=window_length, polyorder=poly_order)
     df_qfq['savgol_min_slope'] = np.gradient(df_qfq['savgol_min'], df_qfq['days_since_start']).round(2)
     df_qfq['savgol_min_slope'] = df_qfq['savgol_min'].diff().round(2)
+
+    df_qfq['skill_score'] = 0
+    for i in range(1, len(df_qfq)):
+        #先跌后涨
+        if df_qfq['increaseRate'].iloc[i - 1] < -8 and df_qfq['increaseRate'].iloc[i] > 9:
+            df_qfq.loc[df_qfq.index[i], 'skill_score'] += 2
+        # 30开头的股票，前一天涨幅小于19，当天开盘降价涨幅大于1%
+        if (code[:2] == "30" and df_qfq['open'].iloc[i - 1] <df_qfq['close'].iloc[i - 1] and
+                df_qfq['increaseRate'].iloc[i - 1] > 4 and  df_qfq['increaseRate'].iloc[i - 1] < 19
+                and df_qfq['open'].iloc[i]/df_qfq['close'].iloc[i-1] >1.02) :
+            df_qfq.loc[df_qfq.index[i], 'skill_score'] += 1
+        # 60开头的股票，前一天涨幅小于9，当天开盘降价涨幅大于1%
+        if ((code[:2] == "60" or code[:2]=='00') and df_qfq['open'].iloc[i - 1] <df_qfq['close'].iloc[i - 1] and
+                df_qfq['increaseRate'].iloc[i - 1] > 3 and  df_qfq['increaseRate'].iloc[i - 1] < 9
+                and df_qfq['open'].iloc[i]/df_qfq['close'].iloc[i-1] >1.01) :
+            df_qfq.loc[df_qfq.index[i], 'skill_score'] += 1
+        # 主板股票，涨停后往下杀
+        if ((code[:2] == "60" or code[:2]=='00') and df_qfq['open'].iloc[i ] >df_qfq['close'].iloc[i]
+                and df_qfq['open'].iloc[i]/df_qfq['close'].iloc[i-1] >1.09  and df_qfq['close'].iloc[i-1]/df_qfq['close'].iloc[i-2] <1.09):
+            df_qfq.loc[df_qfq.index[i], 'skill_score'] += 2
+        # # 创业板股票，涨停后往下杀
+        # if (code[:2] == "30"  and df_qfq['open'].iloc[i ] >df_qfq['close'].iloc[i]
+        #         and df_qfq['open'].iloc[i]/df_qfq['close'].iloc[i-1] >1.09  and df_qfq['open'].iloc[i]/df_qfq['close'].iloc[i-1] <1.18
+        #         and df_qfq['close'].iloc[i-1]/df_qfq['close'].iloc[i-2] <1.09):
+        #     df_qfq.loc[df_qfq.index[i], 'skill_score'] += 3
+
+    df_qfq['lose_score'] = 0
+    for i in range(1, len(df_qfq)):
+        #前一天收红，第二天低开，
+        if df_qfq['open'].iloc[i-1 ] <df_qfq['close'].iloc[i-1 ] and  df_qfq['open'].iloc[i ] >df_qfq['close'].iloc[i ] and df_qfq['increaseRate'].iloc[i - 1] > 5 and df_qfq['open'].iloc[i] / df_qfq['close'].iloc[i - 1] < 0.98:
+            df_qfq.loc[df_qfq.index[i], 'lose_score'] += 1
+        #五日线向上，你低开
+        elif df_qfq['savgol_MA5_slope'].iloc[i ] >0 and df_qfq['open'].iloc[i] / df_qfq['close'].iloc[i - 1] < 0.98 and df_qfq['open'].iloc[i ] >df_qfq['close'].iloc[i ]:
+            df_qfq.loc[df_qfq.index[i], 'lose_score'] += 1
+        #跌5个点第二天不回补
+        # if df_qfq['increaseRate'].iloc[i - 1] < -5 and df_qfq['increaseRate'].iloc[i-1] +df_qfq['increaseRate'].iloc[i]< -4:
+        #     df_qfq.loc[df_qfq.index[i], 'lose_score'] += 1
+        # if df_qfq['increaseRate'].iloc[i - 1] > 4 and df_qfq['open'].iloc[i] / df_qfq['close'].iloc[i - 1] < 0.98 and df_qfq['open'].iloc[i] / df_qfq['close'].iloc[i - 1] > 0.96:
+        #     df_qfq.loc[df_qfq.index[i], 'lose_score'] += 1
+        # if df_qfq['increaseRate'].iloc[i - 1] > 4 and df_qfq['open'].iloc[i] / df_qfq['close'].iloc[i - 1] < 0.96 and df_qfq['open'].iloc[i] / df_qfq['close'].iloc[i - 1] > 0.93:
+        #     df_qfq.loc[df_qfq.index[i], 'lose_score'] += 2
+        # if df_qfq['increaseRate'].iloc[i - 1] > 4 and df_qfq['open'].iloc[i] / df_qfq['close'].iloc[i - 1] < 0.93 :
+        #     df_qfq.loc[df_qfq.index[i], 'lose_score'] += 4
+        #
+        # if df_qfq['open'].iloc[i - 1] <df_qfq['close'].iloc[i - 1] and df_qfq['increaseRate'].iloc[i - 1] <4 and df_qfq['open'].iloc[i ] >df_qfq['close'].iloc[i ] and df_qfq['open'].iloc[i] / df_qfq['close'].iloc[i - 1] < 0.96  and df_qfq['open'].iloc[i] / df_qfq['close'].iloc[i - 1] > 0.94:
+        #     df_qfq.loc[df_qfq.index[i], 'lose_score'] += 2
+        # if df_qfq['open'].iloc[i - 1] <df_qfq['close'].iloc[i - 1] and df_qfq['increaseRate'].iloc[i - 1] <4 and df_qfq['open'].iloc[i ] >df_qfq['close'].iloc[i ]  and df_qfq['open'].iloc[i] / df_qfq['close'].iloc[i - 1] < 0.94  and df_qfq['open'].iloc[i] / df_qfq['close'].iloc[i - 1] > 0.88:
+        #     df_qfq.loc[df_qfq.index[i], 'lose_score'] += 3
+        # if df_qfq['open'].iloc[i - 1] <df_qfq['close'].iloc[i - 1] and df_qfq['increaseRate'].iloc[i - 1] <4 and df_qfq['open'].iloc[i] / df_qfq['close'].iloc[i - 1] < 0.88 :
+        #     df_qfq.loc[df_qfq.index[i], 'lose_score'] += 4
+
+
     
     
     # 把date作为日期索引，以符合Backtrader的要求

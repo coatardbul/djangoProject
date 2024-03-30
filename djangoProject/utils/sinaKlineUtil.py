@@ -50,6 +50,7 @@ def get_stock_minute_detail(code, response):
 
 def get_stock_minuter_list(code):
     stock_minute_info = get_stock_minute_info(code)
+    print(stock_minute_info)
     if stock_minute_info:
         return get_stock_minute_detail(code, stock_minute_info)
     else:
