@@ -5,6 +5,7 @@ import requests
 from pytdx.hq import TdxHq_API
 
 from djangoProject.service.stock_tick import get_sz_sz_type
+from djangoProject.utils.ElasticUtil import ElasticsearchTool
 from djangoProject.utils.busi_convert import convert_buy_sell_flag
 from djangoProject.utils.number_string_format import str_to_num
 
@@ -84,9 +85,11 @@ def calculate_cumulative_and_current_vol_avg_price(data):
     cumulative_data = {}
     vol_total_sum = 0  # Total volume up to the current minute
     pm_vol_total_sum = 0.01  # Total volume up to the current minute
+    pm2_vol_total_sum = 0.01  # Total volume up to the current minute
 
     vol_price_total_sum = 0  # Total volume*price up to the current minute
     pm_vol_price_total_sum = 0  # Total volume*price up to the current minute
+    pm2_vol_price_total_sum = 0  # Total volume*price up to the current minute
 
     list=[]
     for entry in data:
@@ -105,21 +108,35 @@ def calculate_cumulative_and_current_vol_avg_price(data):
         if minute>='13:00':
             pm_vol_total_sum += info['vol_sum']
             pm_vol_price_total_sum += info['vol_price_sum']
-
+        if minute>='14:00':
+            pm2_vol_total_sum += info['vol_sum']
+            pm2_vol_price_total_sum += info['vol_price_sum']
         cumulative_avg_price = vol_price_total_sum / vol_total_sum if vol_total_sum else 0
         pm_cumulative_avg_price = pm_vol_price_total_sum / pm_vol_total_sum if pm_vol_total_sum else 0
+        pm2_cumulative_avg_price = pm2_vol_price_total_sum / pm2_vol_total_sum if pm_vol_total_sum else 0
         max_second_price = max(info['prices'], key=lambda x: x[0])[1]
         # Store cumulative and current minute data
         cumulative_data = {
             'minuter': minute,
             'avg_price': round(cumulative_avg_price, 2),
             'pm_avg_price': round(pm_cumulative_avg_price, 2),
+            'pm2_avg_price': round(pm2_cumulative_avg_price, 2),
             'vol': info['vol_sum'],
             'price': max_second_price,
         }
         list.append(cumulative_data)
     return list
 
+def his_auction_tick_list(dateStr, code):
+    es = ElasticsearchTool()
+    auctionArr = es.search_documents(index_name="his_tick_auction", query={
+        "bool": {
+            "must": [
+                {"term": {"code": "001234"}},
+                {"term": {"dateStr": "2024-04-29"}}
+            ]
+        }
+    })
 
 def his_tick_list(dateStr, code):
     api = TdxHq_API()

@@ -1,5 +1,6 @@
 import json
-from datetime import datetime, date
+import traceback
+from datetime import datetime, date, timedelta
 import akshare as ak
 
 from djangoProject.utils.StockUtil import is_up_limit
@@ -24,9 +25,16 @@ def getDayDateScore(request):
     code = json_result.get("code");
     strategySignArr = json_result.get("strategySignArr");
     scoreSign = json_result.get("scoreSign");
-    df_qfq = StockUtil.getStockPandas(code, two_years_earlier(dateStr.replace('-', '')), dateStr.replace('-', ''));
-    target_idx = df_qfq.index.get_loc(dateStr)  # 获取目标日期的位置
     list = []
+    try:
+        df_qfq = StockUtil.getStockPandas(code, two_years_earlier(dateStr.replace('-', '')), dateStr.replace('-', ''));
+        sdfds=1
+    except Exception as e:
+        traceback.print_exc()
+        return HttpResponse(json.dumps(list, default=default_converter))
+    else:
+        print("读取成功")
+    target_idx = df_qfq.index.get_loc(dateStr)  # 获取目标日期的位置
     for strategySign in strategySignArr:
         if (strategySign == 'cyb_big_increase_high_open'):
             if df_qfq.iloc[target_idx-1].increaseRate>10 and df_qfq.iloc[target_idx-1].increaseRate<19 and df_qfq.iloc[target_idx-1].tradeAmount>80000000:
@@ -189,6 +197,7 @@ def get_data(df_qfq, target_idx, scoreSign, code,strategyName):
         'lastCallAuctionRate': round(
             (df_qfq.iloc[target_idx-1].open - df_qfq.iloc[target_idx - 2].close) / df_qfq.iloc[target_idx - 2].close, 4),
         'currPrice': df_qfq.iloc[target_idx].close,
+        'lastLastClosePrice': df_qfq.iloc[target_idx - 2].close,
         'lastClosePrice':df_qfq.iloc[target_idx-1].close,
         'currUpRate': round(
             (df_qfq.iloc[target_idx].close - df_qfq.iloc[target_idx - 1].close) / df_qfq.iloc[target_idx - 1].close, 4),
@@ -226,7 +235,7 @@ def two_years_earlier(date_str):
     given_date = datetime.strptime(date_str, "%Y%m%d")
 
     # 计算两年前的日期
-    new_date = given_date.replace(year=given_date.year - 2)
+    new_date = given_date - timedelta(days=700)
 
     # 将新日期转换回字符串格式并返回
     return new_date.strftime("%Y%m%d")
