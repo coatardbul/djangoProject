@@ -21,7 +21,7 @@ def getMinuterInfo(request):
     code = json_result.get("code");
     api = TdxHq_API()
     list = []
-    with api.connect('119.147.212.81', 7709):
+    with api.connect('110.41.147.114', 7709):
         dateFormatStr = dateStr.replace("-", "");
         # 数据总共4800
         data = api.get_history_minute_time_data(get_sz_sz_type(code), code, int(dateFormatStr));

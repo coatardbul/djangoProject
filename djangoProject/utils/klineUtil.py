@@ -1,5 +1,6 @@
 
 from collections import defaultdict
+from datetime import datetime, timedelta
 
 import requests
 from pytdx.hq import TdxHq_API
@@ -92,6 +93,7 @@ def calculate_cumulative_and_current_vol_avg_price(data):
     pm2_vol_price_total_sum = 0  # Total volume*price up to the current minute
 
     list=[]
+    result=[]
     for entry in data:
         minute_key = entry['time'][:5]  # HH:MM format
         second = int(entry['time'][6:8])  # Extracting seconds
@@ -101,7 +103,16 @@ def calculate_cumulative_and_current_vol_avg_price(data):
         grouped_data[minute_key]['vol_sum'] += vol
         grouped_data[minute_key]['prices'].append((second, price))
         grouped_data[minute_key]['vol_price_sum'] += vol * price
+        # 定义两个时间段
+    morning_start = '09:30'
+    morning_end = '11:30'
+    afternoon_start = '13:01'
+    afternoon_end = '15:00'
 
+    # 生成两个时间段的时间列表
+    morning_times = generate_time_range(morning_start, morning_end)
+    afternoon_times = generate_time_range(afternoon_start, afternoon_end)
+    all_times = ['09:25']+morning_times + afternoon_times
     for minute, info in sorted(grouped_data.items()):
         vol_total_sum += info['vol_sum']
         vol_price_total_sum += info['vol_price_sum']
@@ -125,7 +136,37 @@ def calculate_cumulative_and_current_vol_avg_price(data):
             'price': max_second_price,
         }
         list.append(cumulative_data)
-    return list
+
+    lastInfo=list[0]
+    for minute in all_times:
+        filtered_grouped_data = [entry for entry in list if entry['minuter'] == minute]
+
+        if len(filtered_grouped_data)>0:
+            result.append(filtered_grouped_data[0])
+            lastInfo=filtered_grouped_data[0]
+        else:
+            cumulative_data = {
+                'minuter': minute,
+                'avg_price': lastInfo['avg_price'],
+                'pm_avg_price': lastInfo['pm_avg_price'],
+                'pm2_avg_price': lastInfo['pm2_avg_price'],
+                'vol': 0,
+                'price': lastInfo['price'],
+            }
+            result.append(cumulative_data)
+    return result
+
+
+def generate_time_range(start_time_str, end_time_str, interval_minutes=1):
+    start_time = datetime.strptime(start_time_str, '%H:%M')
+    end_time = datetime.strptime(end_time_str, '%H:%M')
+    time_range = []
+
+    while start_time <= end_time:
+        time_range.append(start_time.strftime('%H:%M'))
+        start_time += timedelta(minutes=interval_minutes)
+
+    return time_range
 
 def his_auction_tick_list(dateStr, code):
     es = ElasticsearchTool()
@@ -141,7 +182,7 @@ def his_auction_tick_list(dateStr, code):
 def his_tick_list(dateStr, code):
     api = TdxHq_API()
     list = []
-    with api.connect('119.147.212.81', 7709):
+    with api.connect('110.41.147.114', 7709):
         dateFormatStr = dateStr.replace("-", "");
         # 数据总共4800
         data1 = api.get_history_transaction_data(get_sz_sz_type(code), code, 0, 2000, int(dateFormatStr))
@@ -159,7 +200,7 @@ def his_tick_list(dateStr, code):
                 currNum = 1
             stockBaseInfo = {
                 'time': item['time'] + ":" + str_to_num(currNum),
-                'price': item['price'],
+                'price':item['price']/10 if code[0] == '1' else item['price'] ,
                 'vol': item['vol'],
                 'buySellFlag': convert_buy_sell_flag(item['buyorsell'])
             }
