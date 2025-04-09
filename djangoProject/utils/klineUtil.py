@@ -33,7 +33,7 @@ from djangoProject.utils.number_string_format import str_to_num
 
 def calculate_minuter_kline(tickArr, minute):
     #请求river数据
-    url = "http://124.222.217.230:9002/river/timeInterval/getTimeList"
+    url = "http://118.126.65.220:9002/river/timeInterval/getTimeList"
 
     # 要发送的数据对象
     data = {
@@ -126,6 +126,12 @@ def calculate_cumulative_and_current_vol_avg_price(data):
         pm_cumulative_avg_price = pm_vol_price_total_sum / pm_vol_total_sum if pm_vol_total_sum else 0
         pm2_cumulative_avg_price = pm2_vol_price_total_sum / pm2_vol_total_sum if pm_vol_total_sum else 0
         max_second_price = max(info['prices'], key=lambda x: x[0])[1]
+        # 找出 prices 中的最大值
+        max_price = max(info['prices'], key=lambda x: x[1])[1]
+        # 找出 prices 中的最小值
+        min_price = min(info['prices'], key=lambda x: x[1])[1]
+        # 获取 prices 中的最开始的价格
+        first_price = info['prices'][0][1]
         # Store cumulative and current minute data
         cumulative_data = {
             'minuter': minute,
@@ -134,6 +140,11 @@ def calculate_cumulative_and_current_vol_avg_price(data):
             'pm2_avg_price': round(pm2_cumulative_avg_price, 2),
             'vol': info['vol_sum'],
             'price': max_second_price,
+            'begin_price': first_price,
+            'max_price':max_price,
+            'min_price':min_price,
+            'vol_price_sum': round(info['vol_price_sum'], 2)   ,
+            'trade_amount':round(info['vol_price_sum']*100, 0)
         }
         list.append(cumulative_data)
 
@@ -210,5 +221,4 @@ def his_tick_list(dateStr, code):
 def his_minuter_list(dateStr, code):
     list =his_tick_list(dateStr, code)
     return calculate_cumulative_and_current_vol_avg_price(list)
-
 

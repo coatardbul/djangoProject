@@ -10,6 +10,9 @@ def get_sz_sz_type(code):
             return TDXParams.MARKET_SH;
     elif (code[0:2] == "00" or code[0:2] == "30"):
         return TDXParams.MARKET_SZ;
+    elif (code[0:2] == "43" or code[0:2] == "83" or code[0:2] == "87" or code[0:2] == "92"):
+        return 2;
+
     else:
         return TDXParams.MARKET_SH;
 
