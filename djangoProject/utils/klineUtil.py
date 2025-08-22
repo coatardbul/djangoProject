@@ -33,7 +33,7 @@ from djangoProject.utils.number_string_format import str_to_num
 
 def calculate_minuter_kline(tickArr, minute):
     #请求river数据
-    url = "http://118.126.65.220:9002/river/timeInterval/getTimeList"
+    url = "http://111.229.40.64:9002/river/timeInterval/getTimeList"
 
     # 要发送的数据对象
     data = {
@@ -82,18 +82,23 @@ def calculate_minuter_kline(tickArr, minute):
 
 
 def calculate_cumulative_and_current_vol_avg_price(data):
-    grouped_data = defaultdict(lambda: {'vol_sum': 0, 'prices': [], 'vol_price_sum': 0})
+    grouped_data = defaultdict(lambda: {
+        'vol_sum': 0,
+        'prices': [],
+        'vol_price_sum': 0,
+        'tick_count': 0  # 新增 tick 计数
+    })
     cumulative_data = {}
     vol_total_sum = 0  # Total volume up to the current minute
-    pm_vol_total_sum = 0.01  # Total volume up to the current minute
-    pm2_vol_total_sum = 0.01  # Total volume up to the current minute
+    pm_vol_total_sum = 0.01
+    pm2_vol_total_sum = 0.01
 
-    vol_price_total_sum = 0  # Total volume*price up to the current minute
-    pm_vol_price_total_sum = 0  # Total volume*price up to the current minute
-    pm2_vol_price_total_sum = 0  # Total volume*price up to the current minute
+    vol_price_total_sum = 0
+    pm_vol_price_total_sum = 0
+    pm2_vol_price_total_sum = 0
 
-    list=[]
-    result=[]
+    list = []
+    result = []
     for entry in data:
         minute_key = entry['time'][:5]  # HH:MM format
         second = int(entry['time'][6:8])  # Extracting seconds
@@ -103,7 +108,9 @@ def calculate_cumulative_and_current_vol_avg_price(data):
         grouped_data[minute_key]['vol_sum'] += vol
         grouped_data[minute_key]['prices'].append((second, price))
         grouped_data[minute_key]['vol_price_sum'] += vol * price
-        # 定义两个时间段
+        grouped_data[minute_key]['tick_count'] += 1   # 每个 tick 加 1
+
+    # 定义两个时间段
     morning_start = '09:30'
     morning_end = '11:30'
     afternoon_start = '13:01'
@@ -112,27 +119,27 @@ def calculate_cumulative_and_current_vol_avg_price(data):
     # 生成两个时间段的时间列表
     morning_times = generate_time_range(morning_start, morning_end)
     afternoon_times = generate_time_range(afternoon_start, afternoon_end)
-    all_times = ['09:25']+morning_times + afternoon_times
+    all_times = ['09:25'] + morning_times + afternoon_times
+
     for minute, info in sorted(grouped_data.items()):
         vol_total_sum += info['vol_sum']
         vol_price_total_sum += info['vol_price_sum']
-        if minute>='13:00':
+        if minute >= '13:00':
             pm_vol_total_sum += info['vol_sum']
             pm_vol_price_total_sum += info['vol_price_sum']
-        if minute>='14:00':
+        if minute >= '14:00':
             pm2_vol_total_sum += info['vol_sum']
             pm2_vol_price_total_sum += info['vol_price_sum']
+
         cumulative_avg_price = vol_price_total_sum / vol_total_sum if vol_total_sum else 0
         pm_cumulative_avg_price = pm_vol_price_total_sum / pm_vol_total_sum if pm_vol_total_sum else 0
         pm2_cumulative_avg_price = pm2_vol_price_total_sum / pm2_vol_total_sum if pm_vol_total_sum else 0
+
         max_second_price = max(info['prices'], key=lambda x: x[0])[1]
-        # 找出 prices 中的最大值
         max_price = max(info['prices'], key=lambda x: x[1])[1]
-        # 找出 prices 中的最小值
         min_price = min(info['prices'], key=lambda x: x[1])[1]
-        # 获取 prices 中的最开始的价格
         first_price = info['prices'][0][1]
-        # Store cumulative and current minute data
+
         cumulative_data = {
             'minuter': minute,
             'avg_price': round(cumulative_avg_price, 2),
@@ -141,20 +148,21 @@ def calculate_cumulative_and_current_vol_avg_price(data):
             'vol': info['vol_sum'],
             'price': max_second_price,
             'begin_price': first_price,
-            'max_price':max_price,
-            'min_price':min_price,
-            'vol_price_sum': round(info['vol_price_sum'], 2)   ,
-            'trade_amount':round(info['vol_price_sum']*100, 0)
+            'max_price': max_price,
+            'min_price': min_price,
+            'vol_price_sum': round(info['vol_price_sum'], 2),
+            'trade_amount': round(info['vol_price_sum'] * 100, 0),
+            'tickCount': info['tick_count']   # 每分钟 tick 数
         }
         list.append(cumulative_data)
 
-    lastInfo=list[0]
+    lastInfo = list[0]
     for minute in all_times:
         filtered_grouped_data = [entry for entry in list if entry['minuter'] == minute]
 
-        if len(filtered_grouped_data)>0:
+        if len(filtered_grouped_data) > 0:
             result.append(filtered_grouped_data[0])
-            lastInfo=filtered_grouped_data[0]
+            lastInfo = filtered_grouped_data[0]
         else:
             cumulative_data = {
                 'minuter': minute,
@@ -163,9 +171,11 @@ def calculate_cumulative_and_current_vol_avg_price(data):
                 'pm2_avg_price': lastInfo['pm2_avg_price'],
                 'vol': 0,
                 'price': lastInfo['price'],
+                'tickCount': 0   # 没有 tick 的分钟补 0
             }
             result.append(cumulative_data)
     return result
+
 
 
 def generate_time_range(start_time_str, end_time_str, interval_minutes=1):
