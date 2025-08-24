@@ -86,7 +86,8 @@ def calculate_cumulative_and_current_vol_avg_price(data):
         'vol_sum': 0,
         'prices': [],
         'vol_price_sum': 0,
-        'tick_count': 0  # 新增 tick 计数
+        'tick_count': 0,  # 每分钟 tick 数
+        'tick_arr': []    # 存放该分钟的所有 tick
     })
     cumulative_data = {}
     vol_total_sum = 0  # Total volume up to the current minute
@@ -104,11 +105,13 @@ def calculate_cumulative_and_current_vol_avg_price(data):
         second = int(entry['time'][6:8])  # Extracting seconds
         vol = entry['vol']
         price = entry['price']
+
         # Update sums for the current minute
         grouped_data[minute_key]['vol_sum'] += vol
         grouped_data[minute_key]['prices'].append((second, price))
         grouped_data[minute_key]['vol_price_sum'] += vol * price
         grouped_data[minute_key]['tick_count'] += 1   # 每个 tick 加 1
+        grouped_data[minute_key]['tick_arr'].append(entry)  # 直接保存原始 tick 数据
 
     # 定义两个时间段
     morning_start = '09:30'
@@ -152,7 +155,8 @@ def calculate_cumulative_and_current_vol_avg_price(data):
             'min_price': min_price,
             'vol_price_sum': round(info['vol_price_sum'], 2),
             'trade_amount': round(info['vol_price_sum'] * 100, 0),
-            'tickCount': info['tick_count']   # 每分钟 tick 数
+            'tickCount': info['tick_count'],    # 每分钟 tick 数
+            'tickArr': info['tick_arr']         # 一分钟的 tick 数据数组
         }
         list.append(cumulative_data)
 
@@ -171,7 +175,8 @@ def calculate_cumulative_and_current_vol_avg_price(data):
                 'pm2_avg_price': lastInfo['pm2_avg_price'],
                 'vol': 0,
                 'price': lastInfo['price'],
-                'tickCount': 0   # 没有 tick 的分钟补 0
+                'tickCount': 0,   # 没有 tick 的分钟补 0
+                'tickArr': []     # 没有 tick 的分钟补空数组
             }
             result.append(cumulative_data)
     return result
