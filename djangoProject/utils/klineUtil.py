@@ -210,11 +210,26 @@ def his_tick_list(dateStr, code):
     list = []
     with api.connect('110.41.147.114', 7709):
         dateFormatStr = dateStr.replace("-", "");
-        # 数据总共4800
-        data1 = api.get_history_transaction_data(get_sz_sz_type(code), code, 0, 2000, int(dateFormatStr))
-        data2 = api.get_history_transaction_data(get_sz_sz_type(code), code, 2000, 2000, int(dateFormatStr))
-        data3 = api.get_history_transaction_data(get_sz_sz_type(code), code, 4000, 2000, int(dateFormatStr))
-        data = data3 + data2 + data1
+
+        # 转为日期对象
+        target_date = datetime.strptime(dateStr, "%Y-%m-%d").date()
+        # 获取今天日期
+        today = datetime.today().date()
+        # 判断是否为当天
+        if target_date == today:
+            # 数据总共4800
+            data1 = api.get_transaction_data(get_sz_sz_type(code), code, 0, 2000)
+            data2 = api.get_transaction_data(get_sz_sz_type(code), code, 2000, 2000)
+            data3 = api.get_transaction_data(get_sz_sz_type(code), code, 4000, 2000)
+            data = data3 + data2 + data1
+        else:
+            # 数据总共4800
+            data1 = api.get_history_transaction_data(get_sz_sz_type(code), code, 0, 2000, int(dateFormatStr))
+            data2 = api.get_history_transaction_data(get_sz_sz_type(code), code, 2000, 2000, int(dateFormatStr))
+            data3 = api.get_history_transaction_data(get_sz_sz_type(code), code, 4000, 2000, int(dateFormatStr))
+            data = data3 + data2 + data1
+
+
 
         currtime = ""
         currNum = 0;
