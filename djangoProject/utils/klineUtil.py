@@ -221,13 +221,21 @@ def his_tick_list(dateStr, code):
             data1 = api.get_transaction_data(get_sz_sz_type(code), code, 0, 2000)
             data2 = api.get_transaction_data(get_sz_sz_type(code), code, 2000, 2000)
             data3 = api.get_transaction_data(get_sz_sz_type(code), code, 4000, 2000)
-            data = data3 + data2 + data1
+            # ⚠️ 自动过滤 None，然后拼接
+            data = []
+            for part in (data3, data2, data1):
+                if part:
+                    data.extend(part)
         else:
             # 数据总共4800
             data1 = api.get_history_transaction_data(get_sz_sz_type(code), code, 0, 2000, int(dateFormatStr))
             data2 = api.get_history_transaction_data(get_sz_sz_type(code), code, 2000, 2000, int(dateFormatStr))
             data3 = api.get_history_transaction_data(get_sz_sz_type(code), code, 4000, 2000, int(dateFormatStr))
-            data = data3 + data2 + data1
+            # ⚠️ 自动过滤 None，然后拼接
+            data = []
+            for part in (data3, data2, data1):
+                if part:
+                    data.extend(part)
 
 
 
