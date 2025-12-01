@@ -218,9 +218,9 @@ def his_tick_list(dateStr, code):
         # 判断是否为当天
         if target_date == today:
             # 数据总共4800
-            data1 = api.get_transaction_data(get_sz_sz_type(code), code, 0, 2000)
-            data2 = api.get_transaction_data(get_sz_sz_type(code), code, 2000, 2000)
-            data3 = api.get_transaction_data(get_sz_sz_type(code), code, 4000, 2000)
+            data1 = api.get_transaction_data(get_sz_sz_type(code), code, 0, 1800)
+            data2 = api.get_transaction_data(get_sz_sz_type(code), code, 1800, 1800)
+            data3 = api.get_transaction_data(get_sz_sz_type(code), code, 3600, 1800)
             # ⚠️ 自动过滤 None，然后拼接
             data = []
             for part in (data3, data2, data1):
@@ -228,9 +228,9 @@ def his_tick_list(dateStr, code):
                     data.extend(part)
         else:
             # 数据总共4800
-            data1 = api.get_history_transaction_data(get_sz_sz_type(code), code, 0, 2000, int(dateFormatStr))
-            data2 = api.get_history_transaction_data(get_sz_sz_type(code), code, 2000, 2000, int(dateFormatStr))
-            data3 = api.get_history_transaction_data(get_sz_sz_type(code), code, 4000, 2000, int(dateFormatStr))
+            data1 = api.get_history_transaction_data(get_sz_sz_type(code), code, 0, 1800, int(dateFormatStr))
+            data2 = api.get_history_transaction_data(get_sz_sz_type(code), code, 1800, 1800, int(dateFormatStr))
+            data3 = api.get_history_transaction_data(get_sz_sz_type(code), code, 3600, 1800, int(dateFormatStr))
             # ⚠️ 自动过滤 None，然后拼接
             data = []
             for part in (data3, data2, data1):
