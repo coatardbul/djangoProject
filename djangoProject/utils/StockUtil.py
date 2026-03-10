@@ -24,7 +24,7 @@ class StockDetail:
 config = {
   'user': 'root',      # 你的MySQL用户名
   'password': 'Dream1226.27!',  # 你的MySQL密码
-  'host': '43.142.151.181',          # MySQL服务器地址，本地为localhost
+  'host': '111.229.40.64',          # MySQL服务器地址，本地为localhost
   'database': 'stock',  # 要连接的数据库名
   'raise_on_warnings': True
 }

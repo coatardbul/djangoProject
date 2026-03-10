@@ -3,11 +3,11 @@ from elasticsearch.helpers import bulk
 
 class ElasticsearchTool:
     def __init__(self, ):
-        es_host = "http://43.142.151.181:9200"
+        es_host = "http://111.229.40.64:9200"
 
         # 用户名和密码
         username = "elastic"
-        password = "MBDcbneAh1OmE53IkwzL"
+        password = "Dream1226.27!"
 
         # 使用用户名和密码连接到 Elasticsearch
         client = Elasticsearch(es_host, basic_auth=(username, password))

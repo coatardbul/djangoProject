@@ -80,7 +80,7 @@ DATABASES = {
         'NAME': 'stock',  # 你的数据库名
         'USER': 'root',  # 你的数据库用户名
         'PASSWORD': 'Dream1226.27!',  # 你的数据库密码
-        'HOST': '43.142.151.181',  # 你的数据库主机
+        'HOST': '111.229.40.64',  # 你的数据库主机
         'PORT': '3306',  # 你的数据库端口
     }
 }
@@ -151,7 +151,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": "redis://43.142.151.181:6399",     # 集群换行即可
+        "LOCATION": "redis://111.229.40.64:6399",     # 集群换行即可
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
             "CONNECTION_POOL_KWARGS": {"max_connections": 100},
